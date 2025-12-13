@@ -14,9 +14,9 @@ import java.net.URLEncoder;
 
 public class EmailDetailActivity extends AppCompatActivity {
 
-    // --- LA CORRECTION EST ICI ---
-    private static final String SERVER_BASE = "http://192.168.1.33:8080";
-    // --------------------------------
+    // --- PASSAGE EN PRODUCTION ---
+    private static final String SERVER_BASE = "https://vertimail.onrender.com";
+    // ---------------------------
 
     private TextView subjectTxt, senderTxt, bodyTxt, dateTxt;
     private Button btnDelete, btnReply;
@@ -80,7 +80,7 @@ public class EmailDetailActivity extends AppCompatActivity {
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setDoOutput(true);
-                conn.setConnectTimeout(5000);
+                conn.setConnectTimeout(15000);
 
                 String params = "username=" + URLEncoder.encode(user, "UTF-8")
                         + "&folder=" + URLEncoder.encode(folder, "UTF-8")

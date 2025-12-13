@@ -19,8 +19,12 @@ import java.net.URLEncoder;
 
 public class SendAuthActivity extends AppCompatActivity {
 
-    private static final String SERVER_URL = "http://192.168.1.33:8080/api/send";
-    private static final String UDP_IP = "192.168.1.33";
+    // --- PASSAGE EN PRODUCTION ---
+    private static final String SERVER_URL = "https://vertimail.onrender.com/api/send";
+    // ---------------------------
+
+    // L'envoi anonyme (UDP) ne peut pas fonctionner en ligne, on le désactive pour la version de production.
+    private static final String UDP_IP = "127.0.0.1"; // Adresse non joignable depuis l'extérieur
     private static final int UDP_PORT = 9999;
 
     String currentUser;
@@ -45,29 +49,27 @@ public class SendAuthActivity extends AppCompatActivity {
             txtWelcome.setText("Nouvel email de: " + currentUser);
         }
 
-        // --- LA LOGIQUE DE RÉPONSE EST ICI ---
         Intent intent = getIntent();
         String replyTo = intent.getStringExtra("REPLY_TO");
         String replySubject = intent.getStringExtra("REPLY_SUBJECT");
 
         if (replyTo != null && !replyTo.isEmpty()) {
-            // C'est une réponse : on pré-remplit les champs
             edtDest.setText(replyTo);
-            edtDest.setEnabled(false); // On bloque le champ destinataire
+            edtDest.setEnabled(false);
             edtSujet.setText(replySubject);
-            edtMsg.requestFocus(); // Le curseur se met directement dans le message
+            edtMsg.requestFocus();
             if (txtWelcome != null) {
                 txtWelcome.setText("Répondre à: " + replyTo);
             }
         }
-        // -------------------------------------
 
         if (btnSend != null) {
             btnSend.setOnClickListener(v -> sendMailHttp());
         }
 
+        // On désactive le bouton d'envoi anonyme pour la version de production
         if (btnAnonyme != null) {
-            btnAnonyme.setOnClickListener(v -> sendMailUdp());
+            btnAnonyme.setVisibility(View.GONE);
         }
     }
 
@@ -105,7 +107,7 @@ public class SendAuthActivity extends AppCompatActivity {
                 if (code == 200) {
                     runOnUiThread(() -> {
                         Toast.makeText(this, "Message envoyé avec succès.", Toast.LENGTH_LONG).show();
-                        finish(); // On ferme l'écran d'envoi après succès
+                        finish();
                     });
                 } else {
                     runOnUiThread(() -> Toast.makeText(this, "Erreur du serveur (Code " + code + ")", Toast.LENGTH_SHORT).show());
@@ -119,6 +121,6 @@ public class SendAuthActivity extends AppCompatActivity {
     }
 
     private void sendMailUdp() {
-        // ... (le code UDP reste inchangé) ...
+        // Cette méthode ne sera plus appelée car le bouton est masqué.
     }
 }

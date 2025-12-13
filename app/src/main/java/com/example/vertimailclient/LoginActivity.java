@@ -16,7 +16,9 @@ import java.net.URLEncoder;
 
 public class LoginActivity extends AppCompatActivity {
 
-    private static final String LOGIN_URL = "http://192.168.1.33:8080/api/login";
+    // --- PASSAGE EN PRODUCTION ---
+    private static final String LOGIN_URL = "https://vertimail.onrender.com/api/login";
+    // ---------------------------
 
     EditText edtUser, edtPass;
     Button btnLogin;
@@ -49,7 +51,7 @@ public class LoginActivity extends AppCompatActivity {
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setDoOutput(true);
-                conn.setConnectTimeout(5000); // Timeout de 5s
+                conn.setConnectTimeout(15000);
 
                 String params = "username=" + URLEncoder.encode(user, "UTF-8") + "&password=" + URLEncoder.encode(pass, "UTF-8");
 

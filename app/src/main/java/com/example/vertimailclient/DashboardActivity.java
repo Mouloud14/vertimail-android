@@ -35,7 +35,9 @@ import java.util.List;
 
 public class DashboardActivity extends AppCompatActivity {
 
-    private static final String SERVER_BASE = "http://192.168.1.33:8080";
+    // --- PASSAGE EN PRODUCTION ---
+    private static final String SERVER_BASE = "https://vertimail.onrender.com";
+    // ---------------------------
 
     DrawerLayout drawerLayout;
     NavigationView navigationView;
@@ -133,7 +135,7 @@ public class DashboardActivity extends AppCompatActivity {
                 String urlStr = SERVER_BASE + "/api/mails?username=" + currentUser + "&folder=" + currentFolder;
                 URL url = new URL(urlStr);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setConnectTimeout(5000);
+                conn.setConnectTimeout(15000);
 
                 BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
                 StringBuilder content = new StringBuilder();
@@ -183,7 +185,7 @@ public class DashboardActivity extends AppCompatActivity {
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setDoOutput(true);
-                conn.setConnectTimeout(5000);
+                conn.setConnectTimeout(15000);
 
                 String params = "username=" + URLEncoder.encode(currentUser, "UTF-8")
                         + "&folder=" + URLEncoder.encode(currentFolder, "UTF-8")
@@ -244,9 +246,7 @@ public class DashboardActivity extends AppCompatActivity {
                 }
                 txtDate.setText(dateRaw);
 
-                // --- LA CORRECTION EST ICI ---
-                boolean isRead = mail.optBoolean("isRead", false); // La valeur par défaut est maintenant false (non lu)
-                // ---------------------------
+                boolean isRead = mail.optBoolean("isRead", false);
 
                 if (!isRead && currentFolder.equals("inbox")) {
                     indicator.setVisibility(View.VISIBLE);
