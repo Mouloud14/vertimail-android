@@ -2,6 +2,7 @@ package com.example.vertimailclient;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.View; // <<< LA CORRECTION EST ICI
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -9,11 +10,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.io.OutputStream;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
 import java.net.HttpURLConnection;
-import java.net.InetAddress;
-import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.URLEncoder;
 
@@ -22,10 +19,6 @@ public class SendAuthActivity extends AppCompatActivity {
     // --- PASSAGE EN PRODUCTION ---
     private static final String SERVER_URL = "https://vertimail.onrender.com/api/send";
     // ---------------------------
-
-    // L'envoi anonyme (UDP) ne peut pas fonctionner en ligne, on le désactive pour la version de production.
-    private static final String UDP_IP = "127.0.0.1"; // Adresse non joignable depuis l'extérieur
-    private static final int UDP_PORT = 9999;
 
     String currentUser;
     EditText edtDest, edtSujet, edtMsg;
@@ -120,7 +113,6 @@ public class SendAuthActivity extends AppCompatActivity {
         }).start();
     }
 
-    private void sendMailUdp() {
-        // Cette méthode ne sera plus appelée car le bouton est masqué.
-    }
+    // La méthode pour l'UDP n'est plus utilisée mais on la garde au cas où.
+    private void sendMailUdp() {}
 }
