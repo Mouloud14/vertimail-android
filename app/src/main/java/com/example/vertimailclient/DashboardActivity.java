@@ -35,9 +35,7 @@ import java.util.List;
 
 public class DashboardActivity extends AppCompatActivity {
 
-    // --- PASSAGE EN PRODUCTION ---
-    private static final String SERVER_BASE = "https://vertimail.onrender.com";
-    // ---------------------------
+    private static final String SERVER_BASE = "http://192.168.1.33:8080";
 
     DrawerLayout drawerLayout;
     NavigationView navigationView;
@@ -135,7 +133,7 @@ public class DashboardActivity extends AppCompatActivity {
                 String urlStr = SERVER_BASE + "/api/mails?username=" + currentUser + "&folder=" + currentFolder;
                 URL url = new URL(urlStr);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setConnectTimeout(15000);
+                conn.setConnectTimeout(5000);
 
                 BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
                 StringBuilder content = new StringBuilder();
@@ -185,7 +183,7 @@ public class DashboardActivity extends AppCompatActivity {
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setDoOutput(true);
-                conn.setConnectTimeout(15000);
+                conn.setConnectTimeout(5000);
 
                 String params = "username=" + URLEncoder.encode(currentUser, "UTF-8")
                         + "&folder=" + URLEncoder.encode(currentFolder, "UTF-8")
@@ -217,7 +215,7 @@ public class DashboardActivity extends AppCompatActivity {
 
     class MailAdapter extends ArrayAdapter<JSONObject> {
         public MailAdapter(List<JSONObject> mails) {
-            super(DashboardActivity.this, 0, mails);
+            super(DashboardActivity.this, R.layout.item_email, mails);
         }
 
         @Override
@@ -228,32 +226,18 @@ public class DashboardActivity extends AppCompatActivity {
 
             JSONObject mail = getItem(position);
 
-            View indicator = convertView.findViewById(R.id.unread_indicator);
             TextView txtSender = convertView.findViewById(R.id.emailSender);
             TextView txtSubject = convertView.findViewById(R.id.emailSubject);
-            TextView txtSnippet = convertView.findViewById(R.id.emailSnippet);
-            TextView txtDate = convertView.findViewById(R.id.emailDate);
 
             if (mail != null) {
                 txtSender.setText(mail.optString("from", "Inconnu"));
                 txtSubject.setText(mail.optString("subject", "(Sans sujet)"));
-                String content = mail.optString("content", "");
-                txtSnippet.setText(content.replace("\n", " "));
-
-                String dateRaw = mail.optString("date", "");
-                if (dateRaw.length() > 16) {
-                    dateRaw = dateRaw.substring(11, 16);
-                }
-                txtDate.setText(dateRaw);
 
                 boolean isRead = mail.optBoolean("isRead", false);
-
                 if (!isRead && currentFolder.equals("inbox")) {
-                    indicator.setVisibility(View.VISIBLE);
                     txtSender.setTypeface(null, Typeface.BOLD);
                     txtSubject.setTypeface(null, Typeface.BOLD);
                 } else {
-                    indicator.setVisibility(View.GONE);
                     txtSender.setTypeface(null, Typeface.NORMAL);
                     txtSubject.setTypeface(null, Typeface.NORMAL);
                 }

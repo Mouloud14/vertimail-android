@@ -27,7 +27,6 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="La messagerie simple et sécurisée."
         android:textSize="16sp"
         android:textColor="#666666"
         android:textAlignment="center"
@@ -37,13 +36,12 @@
         android:id="@+id/btnModeConnecte"
         android:layout_width="match_parent"
         android:layout_height="60dp"
-        android:text="Accéder à ma messagerie"
+        android:text="Mode sécurisé (Connexion requise)"
         android:textSize="16sp"
         app:cornerRadius="8dp"
-        app:backgroundTint="#6A0DAD"
+        app:backgroundTint="#4f46e5"
         android:layout_marginBottom="16dp" />
 
-    <!-- Le bouton pour le mode anonyme est maintenant masqué pour la version de production -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnModeAnonyme"
         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
@@ -53,7 +51,6 @@
         android:textSize="16sp"
         app:cornerRadius="8dp"
         app:strokeColor="#1f2937"
-        android:textColor="#1f2937"
-        android:visibility="gone"/>
+        android:textColor="#1f2937"/>
 
 </LinearLayout>

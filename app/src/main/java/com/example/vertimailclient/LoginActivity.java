@@ -16,9 +16,9 @@ import java.net.URLEncoder;
 
 public class LoginActivity extends AppCompatActivity {
 
-    // --- PASSAGE EN PRODUCTION ---
-    private static final String LOGIN_URL = "https://vertimail.onrender.com/api/login";
-    // ---------------------------
+    // --- RETOUR EN MODE DÉVELOPPEMENT LOCAL ---
+    private static final String LOGIN_URL = "http://192.168.1.33:8080/api/login";
+    // -------------------------------------------
 
     EditText edtUser, edtPass;
     Button btnLogin;
@@ -44,14 +44,14 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void doLogin(String user, String pass) {
-        Toast.makeText(this, "Connexion au serveur...", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Connexion au serveur local...", Toast.LENGTH_SHORT).show();
         new Thread(() -> {
             try {
                 URL url = new URL(LOGIN_URL);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setDoOutput(true);
-                conn.setConnectTimeout(15000);
+                conn.setConnectTimeout(5000);
 
                 String params = "username=" + URLEncoder.encode(user, "UTF-8") + "&password=" + URLEncoder.encode(pass, "UTF-8");
 
@@ -62,8 +62,8 @@ public class LoginActivity extends AppCompatActivity {
                 int code = conn.getResponseCode();
 
                 BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                String inputLine;
                 StringBuilder response = new StringBuilder();
+                String inputLine;
                 while ((inputLine = in.readLine()) != null) {
                     response.append(inputLine);
                 }
@@ -80,14 +80,13 @@ public class LoginActivity extends AppCompatActivity {
                         finish();
                     });
                 } else {
-                    String errorMessage = jsonResponse.optString("message", "Erreur inconnue du serveur");
-                    runOnUiThread(() -> Toast.makeText(this, "Erreur : " + errorMessage, Toast.LENGTH_LONG).show());
+                    String errorMessage = jsonResponse.optString("message", "Erreur inconnue");
+                    runOnUiThread(() -> Toast.makeText(this, "Erreur: " + errorMessage, Toast.LENGTH_LONG).show());
                 }
 
             } catch (Exception e) {
                 e.printStackTrace();
-                final String msg = e.getMessage();
-                runOnUiThread(() -> Toast.makeText(this, "Erreur de connexion au réseau : " + msg, Toast.LENGTH_LONG).show());
+                runOnUiThread(() -> Toast.makeText(this, "Erreur de connexion au réseau : " + e.getMessage(), Toast.LENGTH_LONG).show());
             }
         }).start();
     }

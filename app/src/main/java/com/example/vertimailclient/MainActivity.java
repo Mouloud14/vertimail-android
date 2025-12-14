@@ -16,11 +16,10 @@ import java.net.SocketTimeoutException;
 
 public class MainActivity extends AppCompatActivity {
 
-    // --- LA CORRECTION FINALE EST ICI ---
+    // --- RETOUR EN MODE DÉVELOPPEMENT LOCAL ---
     private static final String UDP_IP = "192.168.1.33";
-    // --------------------------------
-
     private static final int UDP_PORT = 9999;
+    // ------------------------------------------
 
     EditText inputDest, inputSujet, inputMsg;
     Button btnEnvoyer;
@@ -54,7 +53,7 @@ public class MainActivity extends AppCompatActivity {
 
         new Thread(() -> {
             try (DatagramSocket socket = new DatagramSocket()) {
-                socket.setSoTimeout(5000);
+                socket.setSoTimeout(5000); // Délai d'attente de 5 secondes
 
                 String messageFinal = destinataire + "\n" + sujet + "\n" + contenu;
                 byte[] buffer = messageFinal.getBytes();
@@ -63,6 +62,7 @@ public class MainActivity extends AppCompatActivity {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, UDP_PORT);
                 socket.send(packet);
 
+                // Attente de la réponse du serveur
                 byte[] bufferRecv = new byte[1024];
                 DatagramPacket packetRecv = new DatagramPacket(bufferRecv, bufferRecv.length);
                 socket.receive(packetRecv);
@@ -75,7 +75,7 @@ public class MainActivity extends AppCompatActivity {
                 });
 
             } catch (SocketTimeoutException e) {
-                runOnUiThread(() -> txtResultat.setText("Le serveur n'a pas répondu dans le temps imparti. Veuillez vérifier la connexion et l'adresse IP."));
+                runOnUiThread(() -> txtResultat.setText("Le serveur n'a pas répondu dans le temps imparti."));
             } catch (Exception e) {
                 e.printStackTrace();
                 runOnUiThread(() -> txtResultat.setText("Erreur d'envoi : " + e.getMessage()));

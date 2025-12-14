@@ -2,7 +2,7 @@ package com.example.vertimailclient;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.view.View; // <<< LA CORRECTION EST ICI
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -10,15 +10,21 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.io.OutputStream;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.URLEncoder;
 
 public class SendAuthActivity extends AppCompatActivity {
 
-    // --- PASSAGE EN PRODUCTION ---
-    private static final String SERVER_URL = "https://vertimail.onrender.com/api/send";
-    // ---------------------------
+    // --- RETOUR EN MODE DÉVELOPPEMENT LOCAL ---
+    private static final String SERVER_URL = "http://192.168.1.33:8080/api/send";
+    private static final String UDP_IP = "192.168.1.33";
+    // -------------------------------------------
+    private static final int UDP_PORT = 9999;
 
     String currentUser;
     EditText edtDest, edtSujet, edtMsg;
@@ -60,9 +66,10 @@ public class SendAuthActivity extends AppCompatActivity {
             btnSend.setOnClickListener(v -> sendMailHttp());
         }
 
-        // On désactive le bouton d'envoi anonyme pour la version de production
+        // On réactive le bouton d'envoi anonyme
         if (btnAnonyme != null) {
-            btnAnonyme.setVisibility(View.GONE);
+            btnAnonyme.setVisibility(View.VISIBLE);
+            btnAnonyme.setOnClickListener(v -> sendMailUdp());
         }
     }
 
@@ -76,7 +83,7 @@ public class SendAuthActivity extends AppCompatActivity {
             return;
         }
 
-        Toast.makeText(this, "Envoi en cours...", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Envoi en cours (HTTP)...", Toast.LENGTH_SHORT).show();
 
         new Thread(() -> {
             try {
@@ -113,6 +120,43 @@ public class SendAuthActivity extends AppCompatActivity {
         }).start();
     }
 
-    // La méthode pour l'UDP n'est plus utilisée mais on la garde au cas où.
-    private void sendMailUdp() {}
+    private void sendMailUdp() {
+        String destinataire = edtDest.getText().toString().trim();
+        String sujet = edtSujet.getText().toString().trim();
+        String contenu = edtMsg.getText().toString().trim();
+
+        if (destinataire.isEmpty() || contenu.isEmpty()) {
+            Toast.makeText(this, "Remplissez au moins le destinataire et le message !", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Toast.makeText(this, "Envoi en cours (UDP)...", Toast.LENGTH_SHORT).show();
+
+        new Thread(() -> {
+            try (DatagramSocket socket = new DatagramSocket()) {
+                socket.setSoTimeout(5000);
+
+                String messageFinal = destinataire + "\n" + sujet + "\n" + contenu;
+                byte[] buffer = messageFinal.getBytes();
+                InetAddress address = InetAddress.getByName(UDP_IP);
+
+                DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, UDP_PORT);
+                socket.send(packet);
+
+                byte[] bufferRecv = new byte[1024];
+                DatagramPacket packetRecv = new DatagramPacket(bufferRecv, bufferRecv.length);
+                socket.receive(packetRecv);
+
+                String reponseServeur = new String(packetRecv.getData(), 0, packetRecv.getLength());
+
+                runOnUiThread(() -> Toast.makeText(this, "Réponse du serveur : " + reponseServeur, Toast.LENGTH_LONG).show());
+
+            } catch (SocketTimeoutException e) {
+                runOnUiThread(() -> Toast.makeText(this, "Le serveur local n\'a pas répondu.", Toast.LENGTH_LONG).show());
+            } catch (Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() -> Toast.makeText(this, "Échec UDP : " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+    }
 }
