@@ -27,7 +27,7 @@ import java.security.MessageDigest;
 
 public class SendAuthActivity extends AppCompatActivity {
 
-    private static final String SERVER_URL = "http://192.168.1.42:8080/api/send";
+    private static final String SERVER_URL = "http://192.168.1.37:8080/api/send";
 
     String currentUser;
     EditText edtDest, edtSujet, edtMsg;
@@ -67,10 +67,29 @@ public class SendAuthActivity extends AppCompatActivity {
         tvAttachmentName = findViewById(R.id.tvAttachmentName);
         btnRemoveAttachment = findViewById(R.id.btnRemoveAttachment);
 
+        TextView txtWelcome = findViewById(R.id.txtWelcome);
+        if (txtWelcome != null) {
+            txtWelcome.setText("Nouvel email de: " + currentUser);
+        }
+
+        Intent intent = getIntent();
+        String replyTo = intent.getStringExtra("REPLY_TO");
+        String replySubject = intent.getStringExtra("REPLY_SUBJECT");
+
+        if (replyTo != null && !replyTo.isEmpty()) {
+            edtDest.setText(replyTo);
+            edtDest.setEnabled(false);
+            edtSujet.setText(replySubject);
+            edtMsg.requestFocus();
+            if (txtWelcome != null) {
+                txtWelcome.setText("Répondre à: " + replyTo);
+            }
+        }
+
         btnAttach.setOnClickListener(v -> {
-            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-            intent.setType("*/*");
-            filePickerLauncher.launch(intent);
+            Intent fileIntent = new Intent(Intent.ACTION_GET_CONTENT);
+            fileIntent.setType("*/*");
+            filePickerLauncher.launch(fileIntent);
         });
 
         btnRemoveAttachment.setOnClickListener(v -> {
@@ -144,13 +163,11 @@ public class SendAuthActivity extends AppCompatActivity {
 
                 DataOutputStream request = new DataOutputStream(conn.getOutputStream());
 
-                // Champs texte
                 addFormField(request, "sender", currentUser, boundary);
                 addFormField(request, "recipient", dest, boundary);
                 addFormField(request, "subject", sujet, boundary);
                 addFormField(request, "content", content, boundary);
                 
-                // Si pièce jointe
                 if (fileUri != null) {
                     addFormField(request, "fileHash", fileHash, boundary);
                     addFormField(request, "fileName", fileName, boundary);

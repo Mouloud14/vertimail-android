@@ -15,7 +15,7 @@ import java.net.URLEncoder;
 
 public class EmailDetailActivity extends AppCompatActivity {
 
-    private static final String SERVER_BASE = "http://192.168.1.33:8080";
+    private static final String SERVER_BASE = "http://192.168.1.37:8080";
 
     private TextView subjectTxt, senderTxt, bodyTxt, dateTxt;
     private Button btnDelete, btnReply;
@@ -79,8 +79,7 @@ public class EmailDetailActivity extends AppCompatActivity {
     }
 
     private void updateStarIcon() {
-        // CORRECTION : Ajout du ".R." manquant
-        btnStar.setImageResource(isImportant ? android.R.drawable.btn_star_big_on : android.R.drawable.btn_star_big_off);
+        btnStar.setImageResource(isImportant ? android.R.drawable.star_on : android.R.drawable.star_off);
     }
 
     private void markAsRead() {

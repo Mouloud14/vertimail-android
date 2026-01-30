@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit;
 
 public class LoginActivity extends AppCompatActivity {
 
-    private static final String LOGIN_URL = "http://192.168.1.33:8080/api/login";
+    private static final String LOGIN_URL = "http://192.168.1.37:8080/api/login";
 
     EditText edtUser, edtPass;
     CheckBox cbStayLoggedIn;
@@ -57,7 +57,6 @@ public class LoginActivity extends AppCompatActivity {
         btnLogin = findViewById(R.id.btnLogin);
         tvForgotPass = findViewById(R.id.tvForgotPassword);
 
-        // Demander la permission pour les notifications (Android 13+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
@@ -84,7 +83,7 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void doLogin(String user, String pass, boolean stayLoggedIn) {
-        Toast.makeText(this, "Connexion au serveur local...", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Connexion au serveur...", Toast.LENGTH_SHORT).show();
         new Thread(() -> {
             try {
                 URL url = new URL(LOGIN_URL);
@@ -111,12 +110,8 @@ public class LoginActivity extends AppCompatActivity {
                 JSONObject jsonResponse = new JSONObject(response.toString());
 
                 if (code == 200 && jsonResponse.getString("status").equals("ok")) {
-                    
-                    // --- NOUVEAUTÉ : On enregistre l'utilisateur ---
                     SharedPreferences prefs = getSharedPreferences("VertimailPrefs", Context.MODE_PRIVATE);
                     prefs.edit().putString("username", user).apply();
-
-                    // --- NOUVEAUTÉ : On lance la vérification en arrière-plan ---
                     startMailCheckWorker();
 
                     runOnUiThread(() -> {
@@ -133,18 +128,16 @@ public class LoginActivity extends AppCompatActivity {
 
             } catch (Exception e) {
                 e.printStackTrace();
-                runOnUiThread(() -> Toast.makeText(this, "Erreur de connexion : " + e.getMessage(), Toast.LENGTH_LONG).show());
+                runOnUiThread(() -> Toast.makeText(this, "Erreur de connexion au réseau : " + e.getMessage(), Toast.LENGTH_LONG).show());
             }
         }).start();
     }
 
     private void startMailCheckWorker() {
-        // Contraintes : il faut internet
         Constraints constraints = new Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .build();
 
-        // On vérifie toutes les 15 minutes (le minimum autorisé par Android)
         PeriodicWorkRequest mailCheckRequest = new PeriodicWorkRequest.Builder(MailWorker.class, 15, TimeUnit.MINUTES)
                 .setConstraints(constraints)
                 .build();

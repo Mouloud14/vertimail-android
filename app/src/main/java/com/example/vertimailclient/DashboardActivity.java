@@ -38,7 +38,7 @@ import java.util.List;
 
 public class DashboardActivity extends AppCompatActivity {
 
-    private static final String SERVER_BASE = "http://192.168.1.33:8080";
+    private static final String SERVER_BASE = "http://192.168.1.37:8080";
 
     DrawerLayout drawerLayout;
     NavigationView navigationView;
@@ -113,8 +113,6 @@ public class DashboardActivity extends AppCompatActivity {
             JSONObject selectedMail = filteredMails.get(position);
             String mailId = selectedMail.optString("id");
 
-            // Le marquage comme lu se fait maintenant dans EmailDetailActivity à l'ouverture.
-            // On peut quand même mettre à jour localement pour l'effet immédiat.
             try {
                 selectedMail.put("isRead", true);
                 mailAdapter.notifyDataSetChanged();
@@ -251,7 +249,6 @@ public class DashboardActivity extends AppCompatActivity {
                 boolean isRead = mail.optBoolean("isRead", false);
                 boolean isImportant = mail.optBoolean("important", false);
 
-                // Style pour les non lus
                 if (!isRead && currentFolder.equals("inbox")) {
                     indicator.setVisibility(View.VISIBLE);
                     txtSender.setTypeface(null, Typeface.BOLD);
@@ -261,8 +258,6 @@ public class DashboardActivity extends AppCompatActivity {
                     txtSender.setTypeface(null, Typeface.NORMAL);
                     txtSubject.setTypeface(null, Typeface.NORMAL);
                 }
-
-                // Affichage de l'étoile
                 imgImportant.setVisibility(isImportant ? View.VISIBLE : View.GONE);
             }
             return convertView;
