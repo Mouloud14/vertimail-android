@@ -58,7 +58,6 @@ public class EmailDetailActivity extends AppCompatActivity {
             }
             if(dateTxt != null) dateTxt.setText(date);
 
-            // --- COMPORTEMENT : Marquer comme lu à la lecture ---
             markAsRead();
         }
 
@@ -80,7 +79,8 @@ public class EmailDetailActivity extends AppCompatActivity {
     }
 
     private void updateStarIcon() {
-        btnStar.setImageResource(isImportant ? android.drawable.btn_star_big_on : android.drawable.btn_star_big_off);
+        // CORRECTION : Ajout du ".R." manquant
+        btnStar.setImageResource(isImportant ? android.R.drawable.btn_star_big_on : android.R.drawable.btn_star_big_off);
     }
 
     private void markAsRead() {
@@ -118,7 +118,7 @@ public class EmailDetailActivity extends AppCompatActivity {
                 if (conn.getResponseCode() == 200) {
                     runOnUiThread(this::updateStarIcon);
                 } else {
-                    isImportant = !isImportant; // Revenir à l'état précédent en cas d'erreur
+                    isImportant = !isImportant;
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -144,7 +144,10 @@ public class EmailDetailActivity extends AppCompatActivity {
                         finish();
                     });
                 }
-            } catch (Exception e) { e.printStackTrace(); }
+            } catch (Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() -> Toast.makeText(EmailDetailActivity.this, "Erreur réseau lors de la suppression.", Toast.LENGTH_SHORT).show());
+            }
         }).start();
     }
 }
