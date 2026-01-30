@@ -1,34 +1,55 @@
 package com.example.vertimailclient;
 
+import android.app.Activity;
 import android.content.Intent;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.OpenableColumns;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
-import java.io.OutputStream;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
-import java.net.InetAddress;
-import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.security.MessageDigest;
 
 public class SendAuthActivity extends AppCompatActivity {
 
-    // --- RETOUR EN MODE DÉVELOPPEMENT LOCAL ---
-    private static final String SERVER_URL = "http://192.168.1.33:8080/api/send";
-    private static final String UDP_IP = "192.168.1.33";
-    // -------------------------------------------
-    private static final int UDP_PORT = 9999;
+    private static final String SERVER_URL = "http://192.168.1.42:8080/api/send";
 
     String currentUser;
     EditText edtDest, edtSujet, edtMsg;
-    Button btnSend, btnAnonyme;
+    Button btnSend, btnAttach;
+    LinearLayout layoutAttachment;
+    TextView tvAttachmentName;
+    ImageButton btnRemoveAttachment;
+
+    Uri fileUri;
+    String fileName;
+    String fileHash;
+
+    private final ActivityResultLauncher<Intent> filePickerLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                    fileUri = result.getData().getData();
+                    fileName = getFileName(fileUri);
+                    calculateHashAndShowUI(fileUri);
+                }
+            }
+    );
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,36 +62,65 @@ public class SendAuthActivity extends AppCompatActivity {
         edtSujet = findViewById(R.id.authSujet);
         edtMsg = findViewById(R.id.authMsg);
         btnSend = findViewById(R.id.btnAuthSend);
-        btnAnonyme = findViewById(R.id.btnSendAnonyme);
+        btnAttach = findViewById(R.id.btnAttachFile);
+        layoutAttachment = findViewById(R.id.layoutAttachment);
+        tvAttachmentName = findViewById(R.id.tvAttachmentName);
+        btnRemoveAttachment = findViewById(R.id.btnRemoveAttachment);
 
-        TextView txtWelcome = findViewById(R.id.txtWelcome);
-        if (txtWelcome != null) {
-            txtWelcome.setText("Nouvel email de: " + currentUser);
-        }
+        btnAttach.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+            intent.setType("*/*");
+            filePickerLauncher.launch(intent);
+        });
 
-        Intent intent = getIntent();
-        String replyTo = intent.getStringExtra("REPLY_TO");
-        String replySubject = intent.getStringExtra("REPLY_SUBJECT");
+        btnRemoveAttachment.setOnClickListener(v -> {
+            fileUri = null;
+            layoutAttachment.setVisibility(View.GONE);
+        });
 
-        if (replyTo != null && !replyTo.isEmpty()) {
-            edtDest.setText(replyTo);
-            edtDest.setEnabled(false);
-            edtSujet.setText(replySubject);
-            edtMsg.requestFocus();
-            if (txtWelcome != null) {
-                txtWelcome.setText("Répondre à: " + replyTo);
+        btnSend.setOnClickListener(v -> sendMailHttp());
+    }
+
+    private String getFileName(Uri uri) {
+        String result = null;
+        if (uri.getScheme().equals("content")) {
+            try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                    if (index != -1) result = cursor.getString(index);
+                }
             }
         }
-
-        if (btnSend != null) {
-            btnSend.setOnClickListener(v -> sendMailHttp());
+        if (result == null) {
+            result = uri.getPath();
+            int cut = result.lastIndexOf('/');
+            if (cut != -1) result = result.substring(cut + 1);
         }
+        return result;
+    }
 
-        // On réactive le bouton d'envoi anonyme
-        if (btnAnonyme != null) {
-            btnAnonyme.setVisibility(View.VISIBLE);
-            btnAnonyme.setOnClickListener(v -> sendMailUdp());
-        }
+    private void calculateHashAndShowUI(Uri uri) {
+        new Thread(() -> {
+            try (InputStream is = getContentResolver().openInputStream(uri)) {
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = is.read(buffer)) > 0) {
+                    digest.update(buffer, 0, read);
+                }
+                byte[] hash = digest.digest();
+                StringBuilder hexString = new StringBuilder();
+                for (byte b : hash) hexString.append(String.format("%02x", b));
+                fileHash = hexString.toString();
+
+                runOnUiThread(() -> {
+                    tvAttachmentName.setText(fileName + " (SHA-256 calculé)");
+                    layoutAttachment.setVisibility(View.VISIBLE);
+                });
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
     }
 
     private void sendMailHttp() {
@@ -79,84 +129,70 @@ public class SendAuthActivity extends AppCompatActivity {
         String content = edtMsg.getText().toString();
 
         if (dest.isEmpty() || content.isEmpty()) {
-            Toast.makeText(this, "Le destinataire et le message sont requis.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Destinataire et message requis.", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        Toast.makeText(this, "Envoi en cours (HTTP)...", Toast.LENGTH_SHORT).show();
-
         new Thread(() -> {
             try {
+                String boundary = "*****" + System.currentTimeMillis() + "*****";
                 URL url = new URL(SERVER_URL);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setConnectTimeout(15000);
-                conn.setReadTimeout(15000);
                 conn.setRequestMethod("POST");
                 conn.setDoOutput(true);
+                conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
 
-                String params = "sender=" + URLEncoder.encode(currentUser, "UTF-8")
-                        + "&recipient=" + URLEncoder.encode(dest, "UTF-8")
-                        + "&subject=" + URLEncoder.encode(sujet, "UTF-8")
-                        + "&content=" + URLEncoder.encode(content, "UTF-8");
+                DataOutputStream request = new DataOutputStream(conn.getOutputStream());
 
-                try (OutputStream os = conn.getOutputStream()) {
-                    os.write(params.getBytes());
+                // Champs texte
+                addFormField(request, "sender", currentUser, boundary);
+                addFormField(request, "recipient", dest, boundary);
+                addFormField(request, "subject", sujet, boundary);
+                addFormField(request, "content", content, boundary);
+                
+                // Si pièce jointe
+                if (fileUri != null) {
+                    addFormField(request, "fileHash", fileHash, boundary);
+                    addFormField(request, "fileName", fileName, boundary);
+                    
+                    request.writeBytes("--" + boundary + "\r\n");
+                    request.writeBytes("Content-Disposition: form-data; name=\"file\"; filename=\"" + fileName + "\"\r\n");
+                    request.writeBytes("Content-Type: application/octet-stream\r\n\r\n");
+
+                    try (InputStream is = getContentResolver().openInputStream(fileUri)) {
+                        byte[] buffer = new byte[8192];
+                        int read;
+                        while ((read = is.read(buffer)) > 0) {
+                            request.write(buffer, 0, read);
+                        }
+                    }
+                    request.writeBytes("\r\n");
                 }
+
+                request.writeBytes("--" + boundary + "--\r\n");
+                request.flush();
+                request.close();
 
                 int code = conn.getResponseCode();
-                if (code == 200) {
-                    runOnUiThread(() -> {
-                        Toast.makeText(this, "Message envoyé avec succès.", Toast.LENGTH_LONG).show();
+                runOnUiThread(() -> {
+                    if (code == 200) {
+                        Toast.makeText(this, "Mail envoyé !", Toast.LENGTH_SHORT).show();
                         finish();
-                    });
-                } else {
-                    runOnUiThread(() -> Toast.makeText(this, "Erreur du serveur (Code " + code + ")", Toast.LENGTH_SHORT).show());
-                }
+                    } else {
+                        Toast.makeText(this, "Erreur serveur : " + code, Toast.LENGTH_SHORT).show();
+                    }
+                });
 
             } catch (Exception e) {
                 e.printStackTrace();
-                runOnUiThread(() -> Toast.makeText(this, "Erreur de connexion : " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> Toast.makeText(this, "Erreur : " + e.getMessage(), Toast.LENGTH_SHORT).show());
             }
         }).start();
     }
 
-    private void sendMailUdp() {
-        String destinataire = edtDest.getText().toString().trim();
-        String sujet = edtSujet.getText().toString().trim();
-        String contenu = edtMsg.getText().toString().trim();
-
-        if (destinataire.isEmpty() || contenu.isEmpty()) {
-            Toast.makeText(this, "Remplissez au moins le destinataire et le message !", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        Toast.makeText(this, "Envoi en cours (UDP)...", Toast.LENGTH_SHORT).show();
-
-        new Thread(() -> {
-            try (DatagramSocket socket = new DatagramSocket()) {
-                socket.setSoTimeout(5000);
-
-                String messageFinal = destinataire + "\n" + sujet + "\n" + contenu;
-                byte[] buffer = messageFinal.getBytes();
-                InetAddress address = InetAddress.getByName(UDP_IP);
-
-                DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, UDP_PORT);
-                socket.send(packet);
-
-                byte[] bufferRecv = new byte[1024];
-                DatagramPacket packetRecv = new DatagramPacket(bufferRecv, bufferRecv.length);
-                socket.receive(packetRecv);
-
-                String reponseServeur = new String(packetRecv.getData(), 0, packetRecv.getLength());
-
-                runOnUiThread(() -> Toast.makeText(this, "Réponse du serveur : " + reponseServeur, Toast.LENGTH_LONG).show());
-
-            } catch (SocketTimeoutException e) {
-                runOnUiThread(() -> Toast.makeText(this, "Le serveur local n\'a pas répondu.", Toast.LENGTH_LONG).show());
-            } catch (Exception e) {
-                e.printStackTrace();
-                runOnUiThread(() -> Toast.makeText(this, "Échec UDP : " + e.getMessage(), Toast.LENGTH_SHORT).show());
-            }
-        }).start();
+    private void addFormField(DataOutputStream request, String name, String value, String boundary) throws Exception {
+        request.writeBytes("--" + boundary + "\r\n");
+        request.writeBytes("Content-Disposition: form-data; name=\"" + name + "\"\r\n\r\n");
+        request.writeBytes(value + "\r\n");
     }
 }

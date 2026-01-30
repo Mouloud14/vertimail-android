@@ -25,8 +25,7 @@
             android:layout_height="wrap_content"
             android:text="Expéditeur"
             android:textSize="16sp"
-            android:textColor="#333333"
-            android:textStyle="bold" />
+            android:textColor="#333333" />
 
         <TextView
             android:id="@+id/emailSubject"
@@ -35,25 +34,29 @@
             android:text="Sujet du message"
             android:textSize="14sp"
             android:textColor="#666666"/>
-
-        <TextView
-            android:id="@+id/emailSnippet"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Aperçu du message..."
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:textSize="14sp"
-            android:textColor="#888888"/>
-
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/emailDate"
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="10:30"
-        android:textSize="12sp"
-        android:textColor="#999999"/>
+        android:orientation="vertical"
+        android:gravity="end">
+
+        <TextView
+            android:id="@+id/emailDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="10:30"
+            android:textSize="12sp"
+            android:textColor="#999999"/>
+
+        <ImageView
+            android:id="@+id/imgImportant"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginTop="4dp"
+            android:src="@android:drawable/btn_star_big_on"
+            android:visibility="gone" />
+    </LinearLayout>
 
 </LinearLayout>

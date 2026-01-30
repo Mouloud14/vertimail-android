@@ -3,6 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Permission pour les notifications sur Android 13+ -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="true"
@@ -28,6 +30,7 @@
         <activity android:name=".DashboardActivity" />
         <activity android:name=".EmailDetailActivity" />
         <activity android:name=".SendAuthActivity" />
+        <activity android:name=".ChangePasswordActivity" />
     </application>
 
 </manifest>

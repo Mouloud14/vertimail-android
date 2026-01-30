@@ -49,7 +49,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginBottom="24dp"
+        android:layout_marginBottom="16dp"
         app:boxStrokeWidth="0dp"
         app:boxStrokeWidthFocused="0dp"
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
@@ -64,6 +64,51 @@
             android:padding="16dp" />
 
     </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- Zone pour la pièce jointe -->
+    <LinearLayout
+        android:id="@+id/layoutAttachment"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="8dp"
+        android:background="#e5e7eb"
+        android:visibility="gone"
+        android:layout_marginBottom="16dp">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@android:drawable/ic_menu_save" />
+
+        <TextView
+            android:id="@+id/tvAttachmentName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="Nom du fichier"
+            android:maxLines="1"
+            android:ellipsize="end"/>
+
+        <ImageButton
+            android:id="@+id/btnRemoveAttachment"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_close_clear_cancel" />
+    </LinearLayout>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnAttachFile"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="📎 Joindre un fichier"
+        android:textColor="#4f46e5"
+        android:layout_gravity="end"
+        android:layout_marginBottom="8dp"/>
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnAuthSend"

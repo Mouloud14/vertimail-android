@@ -4,7 +4,7 @@ plugins {
 
 android {
     namespace = "com.example.vertimailclient"
-    compileSdk = 34 // Je conseille de mettre 34 (stable) au lieu de 36 (preview/bêta) pour éviter les bugs
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.example.vertimailclient"
@@ -35,14 +35,11 @@ dependencies {
     implementation(libs.appcompat)
     implementation(libs.activity)
     implementation(libs.constraintlayout)
-
-    // --- MODIFICATION IMPORTANTE ICI ---
-    // On force la version 1.11.0 pour éviter le crash du Menu/FloatingButton
-    // (Ne pas utiliser libs.material ici car il peut pointer vers une version bugguée)
     implementation("com.google.android.material:material:1.11.0")
-
-    // Pour lire le JSON (facultatif si tu utilises org.json, mais utile)
     implementation("com.google.code.gson:gson:2.10.1")
+
+    // --- AJOUT WORKMANAGER POUR LES NOTIFICATIONS ---
+    implementation("androidx.work:work-runtime:2.9.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)

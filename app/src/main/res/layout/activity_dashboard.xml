@@ -2,6 +2,7 @@
 <androidx.drawerlayout.widget.DrawerLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
@@ -21,8 +22,26 @@
                 android:layout_height="?attr/actionBarSize"
                 android:background="#4f46e5"
                 android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
-                app:title="Boîte de réception"
-                app:navigationIcon="@android:drawable/ic_menu_sort_by_size"/>
+                app:title="Boîte de réception" />
+
+            <!-- Barre de recherche -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/searchLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="8dp"
+                app:startIconDrawable="@android:drawable/ic_menu_search"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/edtSearch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Filtrer par expéditeur, sujet..."
+                    android:inputType="text" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
             <ListView
                 android:id="@+id/listMails"
                 android:layout_width="match_parent"
