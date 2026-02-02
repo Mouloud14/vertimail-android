@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Build;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
@@ -25,7 +26,7 @@ import java.net.URL;
 public class MailWorker extends Worker {
 
     private static final String CHANNEL_ID = "MAIL_NOTIFICATIONS";
-    private static final String SERVER_BASE = "http://192.168.1.33:8080"; // Vérifie ton IP !
+    private static final String SERVER_BASE = "http://192.168.1.40:8080";
 
     public MailWorker(@NonNull Context context, @NonNull WorkerParameters workerParams) {
         super(context, workerParams);
@@ -41,10 +42,10 @@ public class MailWorker extends Worker {
         if (username == null) return Result.success();
 
         try {
-            // 1. On demande la liste des mails récents
+            // On vérifie les messages
             URL url = new URL(SERVER_BASE + "/api/mails?username=" + username + "&folder=inbox");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setConnectTimeout(5000);
+            conn.setConnectTimeout(10000); // On laisse un peu plus de temps
 
             BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
             StringBuilder response = new StringBuilder();
@@ -56,49 +57,62 @@ public class MailWorker extends Worker {
             JSONArray mails = json.optJSONArray("mails");
 
             if (mails != null && mails.length() > 0) {
-                // On récupère le mail le plus récent (le premier après notre tri)
-                JSONObject latestMail = mails.getJSONObject(0);
-                
-                // On vérifie s'il est non lu
-                if (!latestMail.optBoolean("isRead", false)) {
-                    String subject = latestMail.optString("subject", "Nouveau message");
-                    String sender = latestMail.optString("from", "Inconnu");
-                    
-                    // On affiche la notification
-                    showNotification(sender, subject);
+                // On regarde les 3 derniers messages pour être sûr de ne rien rater
+                for (int i = 0; i < Math.min(mails.length(), 3); i++) {
+                    JSONObject mail = mails.getJSONObject(i);
+                    if (!mail.optBoolean("isRead", false)) {
+                        String subject = mail.optString("subject", "Nouveau message");
+                        String sender = mail.optString("from", "Inconnu");
+                        String mailId = mail.optString("id");
+
+                        // On n'affiche la notif que si on ne l'a pas déjà affichée pour ce mailId
+                        if (shouldNotify(context, mailId)) {
+                            showNotification(sender, subject);
+                            markAsNotified(context, mailId);
+                        }
+                    }
                 }
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.e("MailWorker", "Erreur lors de la vérification : " + e.getMessage());
             return Result.retry();
         }
 
         return Result.success();
     }
 
+    private boolean shouldNotify(Context context, String mailId) {
+        SharedPreferences prefs = context.getSharedPreferences("NotifPrefs", Context.MODE_PRIVATE);
+        return !prefs.getBoolean("notified_" + mailId, false);
+    }
+
+    private void markAsNotified(Context context, String mailId) {
+        SharedPreferences prefs = context.getSharedPreferences("NotifPrefs", Context.MODE_PRIVATE);
+        prefs.edit().putBoolean("notified_" + mailId, true).apply();
+    }
+
     private void showNotification(String sender, String subject) {
         Context context = getApplicationContext();
         NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 
-        // Création du canal pour Android 8+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Nouveaux Courriers", NotificationManager.IMPORTANCE_DEFAULT);
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Nouveaux Courriers", NotificationManager.IMPORTANCE_HIGH);
             notificationManager.createNotificationChannel(channel);
         }
 
-        // Intention de rediriger vers le site web (comme demandé)
-        Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("http://localhost:8080")); // À adapter si besoin
-        PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, browserIntent, PendingIntent.FLAG_IMMUTABLE);
+        // On corrige le lien pour qu'il soit cliquable
+        Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(SERVER_BASE));
+        PendingIntent pendingIntent = PendingIntent.getActivity(context, (int)System.currentTimeMillis(), browserIntent, PendingIntent.FLAG_IMMUTABLE);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_dialog_email)
                 .setContentTitle("Nouveau mail de " + sender)
                 .setContentText(subject)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true);
 
-        notificationManager.notify(1, builder.build());
+        notificationManager.notify((int) System.currentTimeMillis(), builder.build());
     }
 }

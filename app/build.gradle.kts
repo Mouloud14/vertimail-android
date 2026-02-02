@@ -37,9 +37,11 @@ dependencies {
     implementation(libs.constraintlayout)
     implementation("com.google.android.material:material:1.11.0")
     implementation("com.google.code.gson:gson:2.10.1")
-
-    // --- AJOUT WORKMANAGER POUR LES NOTIFICATIONS ---
     implementation("androidx.work:work-runtime:2.9.0")
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+
+    // --- AJOUT POUR LE TEMPS RÉEL (WebSockets) ---
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)

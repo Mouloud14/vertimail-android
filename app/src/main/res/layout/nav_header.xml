@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="176dp"
     android:background="#4f46e5"
@@ -8,12 +9,36 @@
     android:padding="16dp"
     android:theme="@style/ThemeOverlay.AppCompat.Dark">
 
-    <ImageView
+    <FrameLayout
         android:layout_width="70dp"
         android:layout_height="70dp"
-        android:contentDescription="Logo"
-        android:src="@android:drawable/sym_def_app_icon"
-        android:layout_marginBottom="10dp"/>
+        android:layout_marginBottom="10dp">
+
+        <View
+            android:id="@+id/headerAvatarBg"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/circle_indicator"
+            android:backgroundTint="#FFFFFF" />
+
+        <TextView
+            android:id="@+id/headerAvatarLetter"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textColor="#4f46e5"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <!-- Image du Header en ROND -->
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/imgHeaderAvatar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:visibility="gone"
+            app:shapeAppearanceOverlay="@style/CircleImageView" />
+    </FrameLayout>
 
     <TextView
         android:id="@+id/tvHeaderUser"

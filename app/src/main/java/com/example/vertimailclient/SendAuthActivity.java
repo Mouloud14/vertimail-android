@@ -27,7 +27,7 @@ import java.security.MessageDigest;
 
 public class SendAuthActivity extends AppCompatActivity {
 
-    private static final String SERVER_URL = "http://192.168.1.37:8080/api/send";
+    private static final String SERVER_URL = "http://192.168.1.40:8080/api/send";
 
     String currentUser;
     EditText edtDest, edtSujet, edtMsg;

@@ -35,11 +35,11 @@ import java.util.concurrent.TimeUnit;
 
 public class LoginActivity extends AppCompatActivity {
 
-    private static final String LOGIN_URL = "http://192.168.1.37:8080/api/login";
+    private static final String LOGIN_URL = "http://192.168.1.40:8080/api/login";
 
     EditText edtUser, edtPass;
     CheckBox cbStayLoggedIn;
-    Button btnLogin;
+    Button btnLogin, btnGoRegister;
     TextView tvForgotPass;
 
     @Override
@@ -55,7 +55,20 @@ public class LoginActivity extends AppCompatActivity {
         edtPass = findViewById(R.id.edtPassword);
         cbStayLoggedIn = findViewById(R.id.cbStayLoggedIn);
         btnLogin = findViewById(R.id.btnLogin);
+        btnGoRegister = findViewById(R.id.btnGoToRegister);
         tvForgotPass = findViewById(R.id.tvForgotPassword);
+
+        // --- CORRECTION : Lancer le worker même en auto-connexion ---
+        SharedPreferences prefs = getSharedPreferences("VertimailPrefs", Context.MODE_PRIVATE);
+        boolean wasStayLoggedIn = prefs.getBoolean("stayLoggedIn", false);
+        String savedUser = prefs.getString("username", null);
+
+        if (wasStayLoggedIn && savedUser != null) {
+            startMailCheckWorker(); // On lance la surveillance des mails !
+            goToDashboard(savedUser);
+            return;
+        }
+        // ----------------------------------------------------------
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -73,6 +86,10 @@ public class LoginActivity extends AppCompatActivity {
             } else {
                 Toast.makeText(this, "Veuillez entrer un nom d'utilisateur.", Toast.LENGTH_SHORT).show();
             }
+        });
+
+        btnGoRegister.setOnClickListener(v -> {
+            startActivity(new Intent(LoginActivity.this, RegisterActivity.class));
         });
 
         tvForgotPass.setOnClickListener(v -> {
@@ -111,15 +128,16 @@ public class LoginActivity extends AppCompatActivity {
 
                 if (code == 200 && jsonResponse.getString("status").equals("ok")) {
                     SharedPreferences prefs = getSharedPreferences("VertimailPrefs", Context.MODE_PRIVATE);
-                    prefs.edit().putString("username", user).apply();
+                    SharedPreferences.Editor editor = prefs.edit();
+                    editor.putString("username", user);
+                    editor.putBoolean("stayLoggedIn", stayLoggedIn);
+                    editor.apply();
+
                     startMailCheckWorker();
 
                     runOnUiThread(() -> {
                         Toast.makeText(this, "Authentification réussie.", Toast.LENGTH_SHORT).show();
-                        Intent intent = new Intent(LoginActivity.this, DashboardActivity.class);
-                        intent.putExtra("CURRENT_USER", user);
-                        startActivity(intent);
-                        finish();
+                        goToDashboard(user);
                     });
                 } else {
                     String errorMessage = jsonResponse.optString("message", "Erreur inconnue");
@@ -128,9 +146,16 @@ public class LoginActivity extends AppCompatActivity {
 
             } catch (Exception e) {
                 e.printStackTrace();
-                runOnUiThread(() -> Toast.makeText(this, "Erreur de connexion au réseau : " + e.getMessage(), Toast.LENGTH_LONG).show());
+                runOnUiThread(() -> Toast.makeText(this, "Erreur de connexion au réseau.", Toast.LENGTH_LONG).show());
             }
         }).start();
+    }
+
+    private void goToDashboard(String user) {
+        Intent intent = new Intent(LoginActivity.this, DashboardActivity.class);
+        intent.putExtra("CURRENT_USER", user);
+        startActivity(intent);
+        finish();
     }
 
     private void startMailCheckWorker() {
