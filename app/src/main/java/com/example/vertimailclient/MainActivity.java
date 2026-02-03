@@ -17,7 +17,7 @@ import java.net.SocketTimeoutException;
 public class MainActivity extends AppCompatActivity {
 
     // --- RETOUR EN MODE DÉVELOPPEMENT LOCAL ---
-    private static final String UDP_IP = "192.168.1.42";
+    private static final String UDP_IP = "192.168.1.35";
     private static final int UDP_PORT = 9999;
     // ------------------------------------------
 

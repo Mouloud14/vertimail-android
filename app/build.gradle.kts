@@ -10,8 +10,8 @@ android {
         applicationId = "com.example.vertimailclient"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 3 // Augmenté pour la v1.2
+        versionName = "1.2" // Version actuelle
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -39,8 +39,6 @@ dependencies {
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("androidx.work:work-runtime:2.9.0")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
-
-    // --- AJOUT POUR LE TEMPS RÉEL (WebSockets) ---
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     testImplementation(libs.junit)

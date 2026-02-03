@@ -30,7 +30,6 @@
             android:textSize="24sp"
             android:textStyle="bold" />
 
-        <!-- Image du Header en ROND -->
         <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/imgHeaderAvatar"
             android:layout_width="match_parent"
@@ -49,12 +48,27 @@
         android:textColor="#FFFFFF"
         android:textStyle="bold" />
 
-    <TextView
-        android:id="@+id/tvStorageInfo"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Espace utilisé : calcul..."
-        android:textSize="12sp"
-        android:textColor="#E0E0E0"/>
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tvStorageInfo"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Espace utilisé : ..."
+            android:textSize="12sp"
+            android:textColor="#E0E0E0"/>
+
+        <!-- Petit indicateur de version mis à jour -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="v1.2.stable"
+            android:textSize="10sp"
+            android:textColor="#80FFFFFF" />
+    </LinearLayout>
 
 </LinearLayout>

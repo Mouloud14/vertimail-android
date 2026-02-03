@@ -13,29 +13,31 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
-import org.json.JSONObject;
-
-import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.FormBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 public class RegisterActivity extends AppCompatActivity {
 
-    private static final String REGISTER_URL = "http://192.168.1.40:8080/api/register";
+    private static final String REGISTER_URL = "http://192.168.1.35:8080/api/register";
 
-    EditText edtUser, edtPass;
+    EditText edtUser, edtPass, edtConfirm;
     Button btnRegister;
     ImageView imgAvatar;
     String base64Image = ""; 
+    private final OkHttpClient client = new OkHttpClient();
 
     private final ActivityResultLauncher<Intent> pickImageLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -45,13 +47,13 @@ public class RegisterActivity extends AppCompatActivity {
                     try {
                         InputStream is = getContentResolver().openInputStream(imageUri);
                         Bitmap bitmap = BitmapFactory.decodeStream(is);
-                        imgAvatar.setImageBitmap(bitmap);
+                        Bitmap scaled = Bitmap.createScaledBitmap(bitmap, 300, 300, true);
+                        imgAvatar.setImageBitmap(scaled);
                         imgAvatar.setPadding(0, 0, 0, 0);
                         
                         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                        bitmap.compress(Bitmap.CompressFormat.JPEG, 50, baos);
+                        scaled.compress(Bitmap.CompressFormat.JPEG, 70, baos);
                         byte[] b = baos.toByteArray();
-                        // CORRECTION : NO_WRAP pour éviter les erreurs de format
                         base64Image = Base64.encodeToString(b, Base64.NO_WRAP);
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -67,6 +69,7 @@ public class RegisterActivity extends AppCompatActivity {
 
         edtUser = findViewById(R.id.regUsername);
         edtPass = findViewById(R.id.regPassword);
+        edtConfirm = findViewById(R.id.regConfirmPassword);
         btnRegister = findViewById(R.id.btnDoRegister);
         imgAvatar = findViewById(R.id.imgRegisterAvatar);
 
@@ -78,42 +81,54 @@ public class RegisterActivity extends AppCompatActivity {
         btnRegister.setOnClickListener(v -> {
             String u = edtUser.getText().toString().trim();
             String p = edtPass.getText().toString().trim();
-            if (!u.isEmpty() && !p.isEmpty()) {
-                doRegister(u, p);
-            } else {
+            String cp = edtConfirm.getText().toString().trim();
+
+            if (u.isEmpty() || p.isEmpty() || cp.isEmpty()) {
                 Toast.makeText(this, "Remplissez tous les champs", Toast.LENGTH_SHORT).show();
+                return;
             }
+
+            if (!p.equals(cp)) {
+                Toast.makeText(this, "Les mots de passe ne correspondent pas", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            doRegister(u, p);
         });
     }
 
     private void doRegister(String user, String pass) {
-        new Thread(() -> {
-            try {
-                URL url = new URL(REGISTER_URL);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setDoOutput(true);
+        FormBody.Builder bodyBuilder = new FormBody.Builder()
+                .add("username", user)
+                .add("password", pass);
+        
+        if (!base64Image.isEmpty()) {
+            bodyBuilder.add("avatar", base64Image);
+        }
 
-                String params = "username=" + URLEncoder.encode(user, "UTF-8")
-                        + "&password=" + URLEncoder.encode(pass, "UTF-8")
-                        + "&avatar=" + URLEncoder.encode(base64Image, "UTF-8");
+        Request request = new Request.Builder()
+                .url(REGISTER_URL)
+                .post(bodyBuilder.build())
+                .build();
 
-                try (OutputStream os = conn.getOutputStream()) {
-                    os.write(params.getBytes());
-                }
-
-                int code = conn.getResponseCode();
-                if (code == 200) {
-                    runOnUiThread(() -> {
-                        Toast.makeText(this, "Compte créé avec succès !", Toast.LENGTH_LONG).show();
-                        finish();
-                    });
-                } else {
-                    runOnUiThread(() -> Toast.makeText(this, "Erreur lors de l'inscription", Toast.LENGTH_SHORT).show());
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                runOnUiThread(() -> Toast.makeText(RegisterActivity.this, "Serveur injoignable", Toast.LENGTH_LONG).show());
             }
-        }).start();
+
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                final String responseData = response.body().string();
+                runOnUiThread(() -> {
+                    if (response.isSuccessful()) {
+                        Toast.makeText(RegisterActivity.this, "Compte créé !", Toast.LENGTH_LONG).show();
+                        finish();
+                    } else {
+                        Toast.makeText(RegisterActivity.this, "Erreur : " + responseData, Toast.LENGTH_LONG).show();
+                    }
+                });
+            }
+        });
     }
 }

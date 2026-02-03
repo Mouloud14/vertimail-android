@@ -1,18 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Permissions Réseau -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-
-    <!-- Permissions pour les Notifications (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
-    <!-- Permissions pour le Service en arrière-plan -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- Requis pour Android 14+ pour la synchro de données (UDP/WebSocket) -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <application
         android:allowBackup="false"
@@ -22,9 +12,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.VertimailClient"
         android:networkSecurityConfig="@xml/network_security_config"
-        tools:targetApi="31">
-
-        <!-- Activité de lancement -->
+        android:usesCleartextTraffic="true">
+        
         <activity
             android:name=".MenuActivity"
             android:exported="true">
@@ -33,8 +22,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <!-- Autres activités -->
+        
         <activity android:name=".MainActivity" android:exported="false" />
         <activity android:name=".LoginActivity" android:exported="false" />
         <activity android:name=".DashboardActivity" android:exported="false" />
@@ -42,18 +30,8 @@
         <activity android:name=".SendAuthActivity" android:exported="false" />
         <activity android:name=".ChangePasswordActivity" android:exported="false" />
         <activity android:name=".RegisterActivity" android:exported="false" />
-
-        <!--
-             DÉCLARATION DU SERVICE DE NOTIFICATION
-             Indispensable pour recevoir les messages UDP en arrière-plan.
-             Le foregroundServiceType est requis pour Android 14.
-        -->
-        <service
-            android:name=".NotificationService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
-
+        <activity android:name=".SettingsActivity" android:exported="false" />
+        
     </application>
 
 </manifest>

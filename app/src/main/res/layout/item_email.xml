@@ -13,11 +13,12 @@
         android:layout_height="48dp"
         android:layout_marginEnd="12dp">
 
-        <View
+        <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/avatarBackground"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="@drawable/circle_indicator" />
+            android:background="#CCCCCC"
+            app:shapeAppearanceOverlay="@style/CircleImageView" />
 
         <TextView
             android:id="@+id/avatarLetter"
@@ -91,7 +92,7 @@
                 android:layout_height="18dp"
                 android:src="@android:drawable/ic_menu_save"
                 android:layout_marginEnd="6dp"
-                android:tint="#757575"
+                app:tint="#757575"
                 android:visibility="gone" />
 
             <View

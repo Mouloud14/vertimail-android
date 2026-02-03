@@ -4,21 +4,24 @@ import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import org.json.JSONObject;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
+import java.io.IOException;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.FormBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 public class ChangePasswordActivity extends AppCompatActivity {
 
-    private static final String CHANGE_PASSWORD_URL = "http://192.168.1.42:8080/api/change-password";
-    
+    private static final String CHANGE_PASSWORD_URL = "http://192.168.1.35:8080/api/change-password";
+
     EditText edtUser, edtOldPass, edtNewPass, edtConfirmPass;
     Button btnChange;
+    private final OkHttpClient client = new OkHttpClient();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,7 +34,6 @@ public class ChangePasswordActivity extends AppCompatActivity {
         edtConfirmPass = findViewById(R.id.edtConfirmPassword);
         btnChange = findViewById(R.id.btnChangePassword);
 
-        // Récupération éventuelle du pseudo pré-rempli
         String prefilledUser = getIntent().getStringExtra("PREFILLED_USER");
         if (prefilledUser != null) {
             edtUser.setText(prefilledUser);
@@ -49,7 +51,7 @@ public class ChangePasswordActivity extends AppCompatActivity {
             }
 
             if (!newP.equals(confirmP)) {
-                Toast.makeText(this, "La confirmation ne correspond pas au nouveau mot de passe.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "La confirmation ne correspond pas.", Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -58,46 +60,41 @@ public class ChangePasswordActivity extends AppCompatActivity {
     }
 
     private void doChangePassword(String user, String oldPass, String newPass) {
-        new Thread(() -> {
-            try {
-                URL url = new URL(CHANGE_PASSWORD_URL);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setDoOutput(true);
-                conn.setConnectTimeout(5000);
+        FormBody body = new FormBody.Builder()
+                .add("username", user)
+                .add("oldPassword", oldPass)
+                .add("newPassword", newPass)
+                .build();
 
-                // On envoie maintenant le pseudo explicitement car on peut ne pas être encore connecté
-                String params = "username=" + URLEncoder.encode(user, "UTF-8")
-                        + "&oldPassword=" + URLEncoder.encode(oldPass, "UTF-8") 
-                        + "&newPassword=" + URLEncoder.encode(newPass, "UTF-8");
+        Request request = new Request.Builder().url(CHANGE_PASSWORD_URL).post(body).build();
 
-                try (OutputStream os = conn.getOutputStream()) {
-                    os.write(params.getBytes());
-                }
-
-                int code = conn.getResponseCode();
-                BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                StringBuilder response = new StringBuilder();
-                String inputLine;
-                while ((inputLine = in.readLine()) != null) response.append(inputLine);
-                in.close();
-
-                JSONObject jsonResponse = new JSONObject(response.toString());
-
-                if (code == 200 && jsonResponse.getString("status").equals("ok")) {
-                    runOnUiThread(() -> {
-                        Toast.makeText(this, "Mot de passe modifié avec succès.", Toast.LENGTH_SHORT).show();
-                        finish();
-                    });
-                } else {
-                    String errorMessage = jsonResponse.optString("message", "Erreur lors du changement.");
-                    runOnUiThread(() -> Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show());
-                }
-
-            } catch (Exception e) {
-                e.printStackTrace();
-                runOnUiThread(() -> Toast.makeText(this, "Erreur réseau : " + e.getMessage(), Toast.LENGTH_LONG).show());
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                runOnUiThread(() -> Toast.makeText(ChangePasswordActivity.this, "Erreur réseau : " + e.getMessage(), Toast.LENGTH_LONG).show());
             }
-        }).start();
+
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                if (!response.isSuccessful()) {
+                    runOnUiThread(() -> Toast.makeText(ChangePasswordActivity.this, "Erreur serveur : " + response.code(), Toast.LENGTH_SHORT).show());
+                    return;
+                }
+                try {
+                    JSONObject json = new JSONObject(response.body().string());
+                    if ("ok".equals(json.optString("status"))) {
+                        runOnUiThread(() -> {
+                            Toast.makeText(ChangePasswordActivity.this, "Mot de passe modifié !", Toast.LENGTH_SHORT).show();
+                            finish();
+                        });
+                    } else {
+                        String msg = json.optString("message", "Erreur.");
+                        runOnUiThread(() -> Toast.makeText(ChangePasswordActivity.this, msg, Toast.LENGTH_LONG).show());
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
     }
 }

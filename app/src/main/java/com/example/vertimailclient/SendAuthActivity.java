@@ -15,30 +15,35 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
-import java.security.MessageDigest;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.FormBody;
+import okhttp3.MultipartBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class SendAuthActivity extends AppCompatActivity {
 
-    private static final String SERVER_URL = "http://192.168.1.40:8080/api/send";
+    private static final String SERVER_BASE = "http://192.168.1.35:8080";
 
-    String currentUser;
+    String currentUser, draftId;
     EditText edtDest, edtSujet, edtMsg;
-    Button btnSend, btnAttach;
+    Button btnSend, btnSaveDraft, btnAttach;
     LinearLayout layoutAttachment;
     TextView tvAttachmentName;
     ImageButton btnRemoveAttachment;
 
     Uri fileUri;
     String fileName;
-    String fileHash;
+    private final OkHttpClient client = new OkHttpClient();
 
     private final ActivityResultLauncher<Intent> filePickerLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -46,7 +51,8 @@ public class SendAuthActivity extends AppCompatActivity {
                 if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
                     fileUri = result.getData().getData();
                     fileName = getFileName(fileUri);
-                    calculateHashAndShowUI(fileUri);
+                    tvAttachmentName.setText(fileName);
+                    layoutAttachment.setVisibility(View.VISIBLE);
                 }
             }
     );
@@ -57,39 +63,29 @@ public class SendAuthActivity extends AppCompatActivity {
         setContentView(R.layout.activity_send_auth);
 
         currentUser = getIntent().getStringExtra("CURRENT_USER");
+        draftId = getIntent().getStringExtra("DRAFT_ID");
 
         edtDest = findViewById(R.id.authDest);
         edtSujet = findViewById(R.id.authSujet);
         edtMsg = findViewById(R.id.authMsg);
         btnSend = findViewById(R.id.btnAuthSend);
+        btnSaveDraft = findViewById(R.id.btnSaveDraft);
         btnAttach = findViewById(R.id.btnAttachFile);
         layoutAttachment = findViewById(R.id.layoutAttachment);
         tvAttachmentName = findViewById(R.id.tvAttachmentName);
         btnRemoveAttachment = findViewById(R.id.btnRemoveAttachment);
 
-        TextView txtWelcome = findViewById(R.id.txtWelcome);
-        if (txtWelcome != null) {
-            txtWelcome.setText("Nouvel email de: " + currentUser);
-        }
-
-        Intent intent = getIntent();
-        String replyTo = intent.getStringExtra("REPLY_TO");
-        String replySubject = intent.getStringExtra("REPLY_SUBJECT");
-
-        if (replyTo != null && !replyTo.isEmpty()) {
-            edtDest.setText(replyTo);
-            edtDest.setEnabled(false);
-            edtSujet.setText(replySubject);
-            edtMsg.requestFocus();
-            if (txtWelcome != null) {
-                txtWelcome.setText("Répondre à: " + replyTo);
-            }
+        if (draftId != null) {
+            edtDest.setText(getIntent().getStringExtra("RECIPIENT"));
+            edtSujet.setText(getIntent().getStringExtra("SUBJECT"));
+            edtMsg.setText(getIntent().getStringExtra("CONTENT"));
+            ((TextView)findViewById(R.id.txtWelcome)).setText("Modifier le brouillon");
         }
 
         btnAttach.setOnClickListener(v -> {
-            Intent fileIntent = new Intent(Intent.ACTION_GET_CONTENT);
-            fileIntent.setType("*/*");
-            filePickerLauncher.launch(fileIntent);
+            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+            intent.setType("*/*");
+            filePickerLauncher.launch(intent);
         });
 
         btnRemoveAttachment.setOnClickListener(v -> {
@@ -97,7 +93,8 @@ public class SendAuthActivity extends AppCompatActivity {
             layoutAttachment.setVisibility(View.GONE);
         });
 
-        btnSend.setOnClickListener(v -> sendMailHttp());
+        btnSend.setOnClickListener(v -> sendMail());
+        btnSaveDraft.setOnClickListener(v -> saveDraft());
     }
 
     private String getFileName(Uri uri) {
@@ -118,98 +115,74 @@ public class SendAuthActivity extends AppCompatActivity {
         return result;
     }
 
-    private void calculateHashAndShowUI(Uri uri) {
-        new Thread(() -> {
-            try (InputStream is = getContentResolver().openInputStream(uri)) {
-                MessageDigest digest = MessageDigest.getInstance("SHA-256");
-                byte[] buffer = new byte[8192];
-                int read;
-                while ((read = is.read(buffer)) > 0) {
-                    digest.update(buffer, 0, read);
-                }
-                byte[] hash = digest.digest();
-                StringBuilder hexString = new StringBuilder();
-                for (byte b : hash) hexString.append(String.format("%02x", b));
-                fileHash = hexString.toString();
+    private void saveDraft() {
+        FormBody body = new FormBody.Builder()
+                .add("sender", currentUser)
+                .add("recipient", edtDest.getText().toString())
+                .add("subject", edtSujet.getText().toString())
+                .add("content", edtMsg.getText().toString())
+                .add("draftId", draftId != null ? draftId : "")
+                .build();
 
-                runOnUiThread(() -> {
-                    tvAttachmentName.setText(fileName + " (SHA-256 calculé)");
-                    layoutAttachment.setVisibility(View.VISIBLE);
-                });
-            } catch (Exception e) {
-                e.printStackTrace();
+        // CHANGEMENT ICI : On utilise /api/draft pour passer le middleware
+        Request request = new Request.Builder().url(SERVER_BASE + "/api/draft").post(body).build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                runOnUiThread(() -> Toast.makeText(SendAuthActivity.this, "Serveur injoignable", Toast.LENGTH_SHORT).show());
             }
-        }).start();
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) {
+                if (response.isSuccessful()) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(SendAuthActivity.this, "📁 Brouillon enregistré !", Toast.LENGTH_SHORT).show();
+                        sendBroadcast(new Intent("com.vertimail.REFRESH_MAILS"));
+                        finish();
+                    });
+                }
+            }
+        });
     }
 
-    private void sendMailHttp() {
+    private void sendMail() {
         String dest = edtDest.getText().toString();
-        String sujet = edtSujet.getText().toString();
-        String content = edtMsg.getText().toString();
+        if (dest.isEmpty()) { Toast.makeText(this, "Destinataire requis", Toast.LENGTH_SHORT).show(); return; }
 
-        if (dest.isEmpty() || content.isEmpty()) {
-            Toast.makeText(this, "Destinataire et message requis.", Toast.LENGTH_SHORT).show();
-            return;
+        MultipartBody.Builder builder = new MultipartBody.Builder().setType(MultipartBody.FORM)
+                .addFormDataPart("sender", currentUser)
+                .addFormDataPart("recipient", dest)
+                .addFormDataPart("subject", edtSujet.getText().toString())
+                .addFormDataPart("content", edtMsg.getText().toString());
+
+        if (draftId != null) builder.addFormDataPart("draftId", draftId);
+
+        if (fileUri != null) {
+            try {
+                InputStream is = getContentResolver().openInputStream(fileUri);
+                byte[] bytes = new byte[is.available()];
+                is.read(bytes);
+                builder.addFormDataPart("file", fileName, RequestBody.create(bytes));
+            } catch (Exception e) { e.printStackTrace(); }
         }
 
-        new Thread(() -> {
-            try {
-                String boundary = "*****" + System.currentTimeMillis() + "*****";
-                URL url = new URL(SERVER_URL);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setDoOutput(true);
-                conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+        Request request = new Request.Builder().url(SERVER_BASE + "/api/send").post(builder.build()).build();
 
-                DataOutputStream request = new DataOutputStream(conn.getOutputStream());
-
-                addFormField(request, "sender", currentUser, boundary);
-                addFormField(request, "recipient", dest, boundary);
-                addFormField(request, "subject", sujet, boundary);
-                addFormField(request, "content", content, boundary);
-                
-                if (fileUri != null) {
-                    addFormField(request, "fileHash", fileHash, boundary);
-                    addFormField(request, "fileName", fileName, boundary);
-                    
-                    request.writeBytes("--" + boundary + "\r\n");
-                    request.writeBytes("Content-Disposition: form-data; name=\"file\"; filename=\"" + fileName + "\"\r\n");
-                    request.writeBytes("Content-Type: application/octet-stream\r\n\r\n");
-
-                    try (InputStream is = getContentResolver().openInputStream(fileUri)) {
-                        byte[] buffer = new byte[8192];
-                        int read;
-                        while ((read = is.read(buffer)) > 0) {
-                            request.write(buffer, 0, read);
-                        }
-                    }
-                    request.writeBytes("\r\n");
-                }
-
-                request.writeBytes("--" + boundary + "--\r\n");
-                request.flush();
-                request.close();
-
-                int code = conn.getResponseCode();
-                runOnUiThread(() -> {
-                    if (code == 200) {
-                        Toast.makeText(this, "Mail envoyé !", Toast.LENGTH_SHORT).show();
-                        finish();
-                    } else {
-                        Toast.makeText(this, "Erreur serveur : " + code, Toast.LENGTH_SHORT).show();
-                    }
-                });
-
-            } catch (Exception e) {
-                e.printStackTrace();
-                runOnUiThread(() -> Toast.makeText(this, "Erreur : " + e.getMessage(), Toast.LENGTH_SHORT).show());
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                runOnUiThread(() -> Toast.makeText(SendAuthActivity.this, "Erreur réseau", Toast.LENGTH_SHORT).show());
             }
-        }).start();
-    }
-
-    private void addFormField(DataOutputStream request, String name, String value, String boundary) throws Exception {
-        request.writeBytes("--" + boundary + "\r\n");
-        request.writeBytes("Content-Disposition: form-data; name=\"" + name + "\"\r\n\r\n");
-        request.writeBytes(value + "\r\n");
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) {
+                if (response.isSuccessful()) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(SendAuthActivity.this, "🚀 Message envoyé !", Toast.LENGTH_SHORT).show();
+                        sendBroadcast(new Intent("com.vertimail.REFRESH_MAILS"));
+                        finish();
+                    });
+                }
+            }
+        });
     }
 }

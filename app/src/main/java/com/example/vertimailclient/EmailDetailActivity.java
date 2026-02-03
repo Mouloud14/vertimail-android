@@ -15,17 +15,23 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.FormBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 public class EmailDetailActivity extends AppCompatActivity {
 
-    private static final String SERVER_BASE = "http://192.168.1.40:8080";
+    private static final String SERVER_BASE = "http://192.168.1.35:8080";
 
     private TextView subjectTxt, senderTxt, bodyTxt, dateTxt, tvAttachName;
     private Button btnDelete, btnReply, btnDownload;
@@ -36,6 +42,7 @@ public class EmailDetailActivity extends AppCompatActivity {
     private String mailId, senderEmail, subjectStr, currentUser, currentFolder;
     private String attachmentName, attachmentHash;
     private boolean isImportant;
+    private final OkHttpClient client = new OkHttpClient();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,7 +72,6 @@ public class EmailDetailActivity extends AppCompatActivity {
             String body = intent.getStringExtra("BODY_KEY");
             String date = intent.getStringExtra("DATE_KEY");
             isImportant = intent.getBooleanExtra("IMPORTANT_KEY", false);
-            
             attachmentName = intent.getStringExtra("ATTACH_NAME");
             attachmentHash = intent.getStringExtra("ATTACH_HASH");
 
@@ -79,8 +85,7 @@ public class EmailDetailActivity extends AppCompatActivity {
             }
             if(dateTxt != null) dateTxt.setText(date);
 
-            // Gestion de la pièce jointe
-            if (attachmentName != null && !attachmentName.isEmpty() && attachmentHash != null) {
+            if (attachmentName != null && !attachmentName.isEmpty()) {
                 showAttachmentBar();
             }
 
@@ -95,81 +100,55 @@ public class EmailDetailActivity extends AppCompatActivity {
             startActivity(replyIntent);
         });
 
-        btnDelete.setOnClickListener(v -> {
-            if (mailId != null && !mailId.isEmpty() && currentUser != null && currentFolder != null) {
-                deleteEmail(currentUser, currentFolder, mailId);
-            }
-        });
-
+        btnDelete.setOnClickListener(v -> deleteEmail());
         btnStar.setOnClickListener(v -> toggleImportant());
-        
         btnDownload.setOnClickListener(v -> downloadFileToPhone(attachmentHash, attachmentName));
     }
 
     private void showAttachmentBar() {
-        layoutAttachBar.setVisibility(View.VISIBLE);
-        tvAttachName.setText(attachmentName);
-        
-        String lowerName = attachmentName.toLowerCase();
-        if (lowerName.endsWith(".png") || lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg") || lowerName.endsWith(".gif")) {
-            downloadAndShowImage(attachmentHash);
+        if (layoutAttachBar != null) {
+            layoutAttachBar.setVisibility(View.VISIBLE);
+            tvAttachName.setText(attachmentName);
+            String lowerName = attachmentName.toLowerCase();
+            if (lowerName.endsWith(".png") || lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg") || lowerName.endsWith(".gif")) {
+                downloadAndShowImage(attachmentHash);
+            }
         }
     }
 
     private void downloadFileToPhone(String hash, String name) {
-        Toast.makeText(this, "Téléchargement de " + name + "...", Toast.LENGTH_SHORT).show();
-        new Thread(() -> {
-            try {
-                URL url = new URL(SERVER_BASE + "/api/download?hash=" + hash);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.connect();
-
-                if (conn.getResponseCode() != 200) {
-                    runOnUiThread(() -> Toast.makeText(this, "Erreur serveur lors du téléchargement", Toast.LENGTH_SHORT).show());
-                    return;
-                }
-
-                InputStream is = conn.getInputStream();
-                
+        Request request = new Request.Builder().url(SERVER_BASE + "/api/download?hash=" + hash).build();
+        client.newCall(request).enqueue(new Callback() {
+            @Override public void onFailure(@NonNull Call call, @NonNull IOException e) {}
+            @Override public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                if (!response.isSuccessful()) return;
+                InputStream is = response.body().byteStream();
                 ContentValues values = new ContentValues();
                 values.put(MediaStore.Downloads.DISPLAY_NAME, name);
-                values.put(MediaStore.Downloads.MIME_TYPE, "application/octet-stream");
                 values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
-
                 Uri uri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
                 if (uri != null) {
                     try (OutputStream os = getContentResolver().openOutputStream(uri)) {
                         byte[] buffer = new byte[8192];
                         int len;
-                        while ((len = is.read(buffer)) != -1) {
-                            os.write(buffer, 0, len);
-                        }
+                        while ((len = is.read(buffer)) != -1) os.write(buffer, 0, len);
                     }
-                    runOnUiThread(() -> Toast.makeText(this, "Fichier enregistré dans Downloads !", Toast.LENGTH_LONG).show());
+                    runOnUiThread(() -> Toast.makeText(EmailDetailActivity.this, "Enregistré dans Downloads", Toast.LENGTH_SHORT).show());
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
-                runOnUiThread(() -> Toast.makeText(this, "Erreur de téléchargement : " + e.getMessage(), Toast.LENGTH_SHORT).show());
             }
-        }).start();
+        });
     }
 
     private void downloadAndShowImage(String hash) {
-        new Thread(() -> {
-            try {
-                URL url = new URL(SERVER_BASE + "/api/download?hash=" + hash);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.connect();
-                InputStream is = conn.getInputStream();
-                Bitmap bitmap = BitmapFactory.decodeStream(is);
-                runOnUiThread(() -> {
-                    if (bitmap != null) {
-                        imgPreview.setImageBitmap(bitmap);
-                        imgPreview.setVisibility(View.VISIBLE);
-                    }
-                });
-            } catch (Exception e) { e.printStackTrace(); }
-        }).start();
+        Request request = new Request.Builder().url(SERVER_BASE + "/api/download?hash=" + hash).build();
+        client.newCall(request).enqueue(new Callback() {
+            @Override public void onFailure(@NonNull Call call, @NonNull IOException e) {}
+            @Override public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                if (!response.isSuccessful()) return;
+                Bitmap bitmap = BitmapFactory.decodeStream(response.body().byteStream());
+                runOnUiThread(() -> { if (bitmap != null) { imgPreview.setImageBitmap(bitmap); imgPreview.setVisibility(View.VISIBLE); } });
+            }
+        });
     }
 
     private void updateStarIcon() {
@@ -177,65 +156,74 @@ public class EmailDetailActivity extends AppCompatActivity {
     }
 
     private void markAsRead() {
-        new Thread(() -> {
-            try {
-                URL url = new URL(SERVER_BASE + "/api/read");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setDoOutput(true);
-                String params = "username=" + URLEncoder.encode(currentUser, "UTF-8")
-                        + "&folder=" + URLEncoder.encode(currentFolder, "UTF-8")
-                        + "&filename=" + URLEncoder.encode(mailId, "UTF-8");
-                try (OutputStream os = conn.getOutputStream()) { os.write(params.getBytes()); }
-                conn.getResponseCode();
-            } catch (Exception e) { e.printStackTrace(); }
-        }).start();
+        String finalId = mailId;
+        if (finalId != null && !finalId.endsWith(".json")) finalId += ".json";
+
+        FormBody body = new FormBody.Builder()
+                .add("username", currentUser)
+                .add("folder", currentFolder)
+                .add("id", finalId)
+                .build();
+
+        Request request = new Request.Builder().url(SERVER_BASE + "/api/mark-read").post(body).build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                // LOG INDISPENSABLE POUR LE DEBUG
+                android.util.Log.e("VERTMAIL", "Erreur mark-read: " + e.getMessage());
+            }
+
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) {
+                if (response.isSuccessful()) {
+                    android.util.Log.d("VERTMAIL", "Mail marqué comme lu sur le serveur");
+                    sendBroadcast(new Intent("com.vertimail.REFRESH_MAILS"));
+                } else {
+                    android.util.Log.e("VERTMAIL", "Réponse serveur négative: " + response.code());
+                }
+            }
+        });
     }
 
     private void toggleImportant() {
-        new Thread(() -> {
-            try {
-                URL url = new URL(SERVER_BASE + "/api/important");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setDoOutput(true);
-                isImportant = !isImportant;
-                String params = "username=" + URLEncoder.encode(currentUser, "UTF-8")
-                        + "&folder=" + URLEncoder.encode(currentFolder, "UTF-8")
-                        + "&filename=" + URLEncoder.encode(mailId, "UTF-8")
-                        + "&important=" + isImportant;
-                try (OutputStream os = conn.getOutputStream()) { os.write(params.getBytes()); }
-                if (conn.getResponseCode() == 200) {
-                    runOnUiThread(this::updateStarIcon);
-                } else {
-                    isImportant = !isImportant;
-                }
-            } catch (Exception e) { e.printStackTrace(); }
-        }).start();
+        isImportant = !isImportant;
+        updateStarIcon();
     }
 
-    private void deleteEmail(String user, String folder, String filename) {
-        new Thread(() -> {
-            try {
-                String urlStr = SERVER_BASE + "/delete";
-                URL url = new URL(urlStr);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setDoOutput(true);
-                String params = "username=" + URLEncoder.encode(user, "UTF-8")
-                        + "&folder=" + URLEncoder.encode(folder, "UTF-8")
-                        + "&filename=" + URLEncoder.encode(filename, "UTF-8");
-                try (OutputStream os = conn.getOutputStream()) { os.write(params.getBytes()); }
-                if (conn.getResponseCode() == 200 || conn.getResponseCode() == 302) {
+    private void deleteEmail() {
+        // FIABILISATION DE L'ID : On s'assure qu'il finit par .json
+        String finalId = mailId;
+        if (finalId != null && !finalId.endsWith(".json")) finalId += ".json";
+
+        FormBody body = new FormBody.Builder()
+                .add("username", currentUser)
+                .add("folder", currentFolder)
+                .add("id", finalId)
+                .build();
+
+        Request request = new Request.Builder()
+                .url(SERVER_BASE + "/api/delete")
+                .post(body)
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                runOnUiThread(() -> Toast.makeText(EmailDetailActivity.this, "Erreur réseau", Toast.LENGTH_SHORT).show());
+            }
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) {
+                if (response.isSuccessful()) {
                     runOnUiThread(() -> {
-                        Toast.makeText(this, "Message supprimé.", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(EmailDetailActivity.this, "Message supprimé.", Toast.LENGTH_SHORT).show();
+                        sendBroadcast(new Intent("com.vertimail.REFRESH_MAILS"));
                         finish();
                     });
+                } else {
+                    runOnUiThread(() -> Toast.makeText(EmailDetailActivity.this, "Le serveur a refusé la suppression", Toast.LENGTH_SHORT).show());
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
-                runOnUiThread(() -> Toast.makeText(EmailDetailActivity.this, "Erreur réseau lors de la suppression.", Toast.LENGTH_SHORT).show());
             }
-        }).start();
+        });
     }
 }

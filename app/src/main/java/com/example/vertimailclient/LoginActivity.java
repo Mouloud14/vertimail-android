@@ -13,6 +13,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -23,33 +24,31 @@ import androidx.work.WorkManager;
 
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.CookieHandler;
-import java.net.CookieManager;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.FormBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 public class LoginActivity extends AppCompatActivity {
 
-    private static final String LOGIN_URL = "http://192.168.1.40:8080/api/login";
+    // --- IP MISE À JOUR : 192.168.1.35 ---
+    private static final String LOGIN_URL = "http://192.168.1.35:8080/api/login";
 
     EditText edtUser, edtPass;
     CheckBox cbStayLoggedIn;
     Button btnLogin, btnGoRegister;
     TextView tvForgotPass;
+    private final OkHttpClient client = new OkHttpClient();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
-
-        if (CookieHandler.getDefault() == null) {
-            CookieHandler.setDefault(new CookieManager());
-        }
 
         edtUser = findViewById(R.id.edtUsername);
         edtPass = findViewById(R.id.edtPassword);
@@ -58,17 +57,15 @@ public class LoginActivity extends AppCompatActivity {
         btnGoRegister = findViewById(R.id.btnGoToRegister);
         tvForgotPass = findViewById(R.id.tvForgotPassword);
 
-        // --- CORRECTION : Lancer le worker même en auto-connexion ---
         SharedPreferences prefs = getSharedPreferences("VertimailPrefs", Context.MODE_PRIVATE);
-        boolean wasStayLoggedIn = prefs.getBoolean("stayLoggedIn", false);
-        String savedUser = prefs.getString("username", null);
-
-        if (wasStayLoggedIn && savedUser != null) {
-            startMailCheckWorker(); // On lance la surveillance des mails !
-            goToDashboard(savedUser);
-            return;
+        if (prefs.getBoolean("stayLoggedIn", false)) {
+            String savedUser = prefs.getString("username", null);
+            if (savedUser != null) {
+                startMailCheckWorker();
+                goToDashboard(savedUser);
+                return;
+            }
         }
-        // ----------------------------------------------------------
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -79,94 +76,69 @@ public class LoginActivity extends AppCompatActivity {
         btnLogin.setOnClickListener(v -> {
             String u = edtUser.getText().toString().trim();
             String p = edtPass.getText().toString().trim();
-            boolean stayLoggedIn = cbStayLoggedIn.isChecked();
-            
             if (!u.isEmpty()) {
-                doLogin(u, p, stayLoggedIn);
+                doLogin(u, p, cbStayLoggedIn.isChecked());
             } else {
-                Toast.makeText(this, "Veuillez entrer un nom d'utilisateur.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Pseudo requis", Toast.LENGTH_SHORT).show();
             }
         });
 
-        btnGoRegister.setOnClickListener(v -> {
-            startActivity(new Intent(LoginActivity.this, RegisterActivity.class));
-        });
-
-        tvForgotPass.setOnClickListener(v -> {
-            Intent intent = new Intent(LoginActivity.this, ChangePasswordActivity.class);
-            intent.putExtra("PREFILLED_USER", edtUser.getText().toString().trim());
-            startActivity(intent);
-        });
+        btnGoRegister.setOnClickListener(v -> startActivity(new Intent(this, RegisterActivity.class)));
     }
 
     private void doLogin(String user, String pass, boolean stayLoggedIn) {
-        Toast.makeText(this, "Connexion au serveur...", Toast.LENGTH_SHORT).show();
-        new Thread(() -> {
-            try {
-                URL url = new URL(LOGIN_URL);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setDoOutput(true);
-                conn.setConnectTimeout(5000);
+        FormBody body = new FormBody.Builder()
+                .add("username", user)
+                .add("password", pass)
+                .add("stayLoggedIn", String.valueOf(stayLoggedIn))
+                .build();
 
-                String params = "username=" + URLEncoder.encode(user, "UTF-8") 
-                        + "&password=" + URLEncoder.encode(pass, "UTF-8")
-                        + "&stayLoggedIn=" + stayLoggedIn;
+        Request request = new Request.Builder().url(LOGIN_URL).post(body).build();
 
-                try (OutputStream os = conn.getOutputStream()) {
-                    os.write(params.getBytes());
-                }
-
-                int code = conn.getResponseCode();
-                BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                StringBuilder response = new StringBuilder();
-                String inputLine;
-                while ((inputLine = in.readLine()) != null) response.append(inputLine);
-                in.close();
-
-                JSONObject jsonResponse = new JSONObject(response.toString());
-
-                if (code == 200 && jsonResponse.getString("status").equals("ok")) {
-                    SharedPreferences prefs = getSharedPreferences("VertimailPrefs", Context.MODE_PRIVATE);
-                    SharedPreferences.Editor editor = prefs.edit();
-                    editor.putString("username", user);
-                    editor.putBoolean("stayLoggedIn", stayLoggedIn);
-                    editor.apply();
-
-                    startMailCheckWorker();
-
-                    runOnUiThread(() -> {
-                        Toast.makeText(this, "Authentification réussie.", Toast.LENGTH_SHORT).show();
-                        goToDashboard(user);
-                    });
-                } else {
-                    String errorMessage = jsonResponse.optString("message", "Erreur inconnue");
-                    runOnUiThread(() -> Toast.makeText(this, "Erreur: " + errorMessage, Toast.LENGTH_LONG).show());
-                }
-
-            } catch (Exception e) {
-                e.printStackTrace();
-                runOnUiThread(() -> Toast.makeText(this, "Erreur de connexion au réseau.", Toast.LENGTH_LONG).show());
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                runOnUiThread(() -> Toast.makeText(LoginActivity.this, "Erreur réseau : " + e.getMessage(), Toast.LENGTH_LONG).show());
             }
-        }).start();
+
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                if (!response.isSuccessful()) {
+                    runOnUiThread(() -> Toast.makeText(LoginActivity.this, "Erreur serveur : " + response.code(), Toast.LENGTH_SHORT).show());
+                    return;
+                }
+                try {
+                    JSONObject json = new JSONObject(response.body().string());
+                    if ("ok".equals(json.optString("status"))) {
+                        SharedPreferences.Editor editor = getSharedPreferences("VertimailPrefs", Context.MODE_PRIVATE).edit();
+                        editor.putString("username", user);
+                        editor.putBoolean("stayLoggedIn", stayLoggedIn);
+                        editor.apply();
+
+                        startMailCheckWorker();
+                        runOnUiThread(() -> goToDashboard(user));
+                    } else {
+                        String msg = json.optString("message", "Erreur");
+                        runOnUiThread(() -> Toast.makeText(LoginActivity.this, msg, Toast.LENGTH_LONG).show());
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
     }
 
     private void goToDashboard(String user) {
-        Intent intent = new Intent(LoginActivity.this, DashboardActivity.class);
+        Intent intent = new Intent(this, DashboardActivity.class);
         intent.putExtra("CURRENT_USER", user);
         startActivity(intent);
         finish();
     }
 
     private void startMailCheckWorker() {
-        Constraints constraints = new Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
+        PeriodicWorkRequest request = new PeriodicWorkRequest.Builder(MailWorker.class, 15, TimeUnit.MINUTES)
+                .setConstraints(new Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .build();
-
-        PeriodicWorkRequest mailCheckRequest = new PeriodicWorkRequest.Builder(MailWorker.class, 15, TimeUnit.MINUTES)
-                .setConstraints(constraints)
-                .build();
-
-        WorkManager.getInstance(this).enqueue(mailCheckRequest);
+        WorkManager.getInstance(this).enqueue(request);
     }
 }

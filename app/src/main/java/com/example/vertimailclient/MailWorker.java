@@ -26,7 +26,7 @@ import java.net.URL;
 public class MailWorker extends Worker {
 
     private static final String CHANNEL_ID = "MAIL_NOTIFICATIONS";
-    private static final String SERVER_BASE = "http://192.168.1.40:8080";
+    private static final String SERVER_BASE = "http://192.168.1.35:8080";
 
     public MailWorker(@NonNull Context context, @NonNull WorkerParameters workerParams) {
         super(context, workerParams);

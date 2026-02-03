@@ -1,21 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
+
     <style name="Base.Theme.VertimailClient" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
         <item name="colorPrimary">#6A0DAD</item>
         <item name="colorPrimaryVariant">#480077</item>
         <item name="colorOnPrimary">@android:color/white</item>
+
         <item name="colorSecondary">#1f2937</item>
         <item name="colorSecondaryVariant">#000014</item>
         <item name="colorOnSecondary">@android:color/white</item>
+
         <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
     </style>
 
     <style name="Theme.VertimailClient" parent="Base.Theme.VertimailClient" />
 
-    <!-- STYLE POUR LES IMAGES RONDES -->
     <style name="CircleImageView" parent="">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">50%</item>
     </style>
+
 </resources>

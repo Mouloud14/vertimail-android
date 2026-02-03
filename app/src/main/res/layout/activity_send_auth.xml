@@ -22,13 +22,11 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/authDest"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Destinataire" />
-
     </com.google.android.material.textfield.TextInputLayout>
 
     <com.google.android.material.textfield.TextInputLayout
@@ -36,13 +34,11 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/authSujet"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Sujet" />
-
     </com.google.android.material.textfield.TextInputLayout>
 
     <com.google.android.material.textfield.TextInputLayout
@@ -53,7 +49,6 @@
         app:boxStrokeWidth="0dp"
         app:boxStrokeWidthFocused="0dp"
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/authMsg"
             android:layout_width="match_parent"
@@ -62,10 +57,8 @@
             android:gravity="top"
             android:background="#f5f5f5"
             android:padding="16dp" />
-
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Zone pour la pièce jointe -->
     <LinearLayout
         android:id="@+id/layoutAttachment"
         android:layout_width="match_parent"
@@ -76,12 +69,10 @@
         android:background="#e5e7eb"
         android:visibility="gone"
         android:layout_marginBottom="16dp">
-
         <ImageView
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@android:drawable/ic_menu_save" />
-
         <TextView
             android:id="@+id/tvAttachmentName"
             android:layout_width="0dp"
@@ -91,7 +82,6 @@
             android:text="Nom du fichier"
             android:maxLines="1"
             android:ellipsize="end"/>
-
         <ImageButton
             android:id="@+id/btnRemoveAttachment"
             android:layout_width="wrap_content"
@@ -100,35 +90,38 @@
             android:src="@android:drawable/ic_menu_close_clear_cancel" />
     </LinearLayout>
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnAttachFile"
-        style="@style/Widget.MaterialComponents.Button.TextButton"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="📎 Joindre un fichier"
-        android:textColor="#4f46e5"
-        android:layout_gravity="end"
-        android:layout_marginBottom="8dp"/>
+        android:orientation="horizontal"
+        android:layout_marginBottom="8dp"
+        android:gravity="end">
+
+        <!-- NOUVEAU BOUTON : BROUILLON -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSaveDraft"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📁 Brouillon"
+            android:textColor="#6b7280" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAttachFile"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📎 Fichier"
+            android:textColor="#4f46e5" />
+    </LinearLayout>
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnAuthSend"
         android:layout_width="match_parent"
         android:layout_height="60dp"
-        android:text="Envoyer (Mode Sécurisé)"
+        android:text="Envoyer"
         android:textSize="16sp"
         app:cornerRadius="8dp"
-        app:backgroundTint="#4f46e5"
-        android:layout_marginBottom="8dp"/>
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnSendAnonyme"
-        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-        android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:text="Envoyer (Mode Anonyme)"
-        android:textSize="16sp"
-        app:cornerRadius="8dp"
-        app:strokeColor="#1f2937"
-        android:textColor="#1f2937"/>
+        app:backgroundTint="#4f46e5" />
 
 </LinearLayout>
